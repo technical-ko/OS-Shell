@@ -5,12 +5,15 @@
 #include <cstring>
 #include <unistd.h>
 #include <sys/wait.h>
+#include <fstream>
 
 
 std::vector<std::string> splitString(std::string text, char d);
 std::string getFullPath(std::string cmd, const std::vector<std::string>& os_path_list);
 bool fileExists(std::string full_path, bool *executable);
 char*const* buildExecArgs(std::vector<std::string> input_args);
+void recordHistory(std::string input, const char* path);
+
 
 int main (int argc, char **argv)
 {
@@ -31,6 +34,8 @@ int main (int argc, char **argv)
 
     std::string exit = "exit";
     std::vector<std::string> input_args;
+    std::vector<std::string> quote_split;
+    std::vector<std::string> space_split;
 
     while(1)
     {
@@ -38,30 +43,110 @@ int main (int argc, char **argv)
         std::cout << "osshell>";
         //  Get user input for next command
         std::getline(std::cin, input);
-        input_args  = splitString(input, ' ');
+
+        //split on quotes
+        quote_split = splitString(input, '\"');
+       
+        //split on spaces for segments that are not between quotes
+        for(int i = 0; i < quote_split.size(); i++)
+        {
+            if(i % 2 == 0)
+            {
+                space_split = splitString(quote_split[i], ' ');
+                for(int j=0; j < space_split.size(); j++)
+                {
+                    input_args.push_back(space_split[j]);
+                }
+            }
+            else
+            {
+                input_args.push_back(quote_split[i]);
+            }
+        }
+        
         if(input_args.size() > 0)
         {
+            //record input into history
+            const char * path = "/home/keith/Desktop/history";
             std::string cmd = input_args[0];
+            int clear = 0;
+
             //  If command is `exit` exit loop / quit program
             if(strcmp(cmd.c_str(), "exit") == 0)
             {
-                //NEED TO RECORD EXIT COMMAND IN HISTORY
-
+                recordHistory(std::string(input), path);
                 return 0;
             }
             //  If command is `history` print previous N commands
             if(strcmp(cmd.c_str(), "history") == 0)
             {
-                
+                if(input_args.size() > 1)
+                {
+                    if(strcmp(input_args[1].c_str(), "clear") == 0)
+                    {
+                        FILE * historyFile;
+                        if((historyFile = fopen(path, "w")) != NULL)
+                        {
+                            fclose(historyFile);
+                        }
+                        //history clear command will not be logged
+                        clear = 1;
+                    }
+                    else
+                    {   //dump last n commands
+                        std::ifstream in(path);
+                        std::string line;
+                        std::vector<std::string> historyLines;
+                        int n;
+                        n = atoi(input_args[1].c_str());
+                        if(n <= 0)
+                        {
+                            std::cout << "Error: history expects an integer > 0 (or 'clear')";
+                        }
+                        else
+                        {
+                            //read history
+                            while(std::getline(in, line))
+                            {
+                                historyLines.push_back(line);
+                            }
+                            if(historyLines.size() > 0)
+                            {
+                                int start = historyLines.size() - n;
+                                for(int i = std::max(start, 0); i < historyLines.size(); i++)
+                                {
+                                    printf("%d: %s\n", i+1, historyLines[i].c_str());
+                                }
+                            }
+
+                        }
+                    }
+                }
+                else
+                {
+                    //dump all history 
+                    std::ifstream in(path);
+                    std::string line;
+                    std::vector<std::string> historyLines;
+                    while(std::getline(in, line))
+                    {
+                        historyLines.push_back(line);
+                    }
+                    if(historyLines.size() > 0)
+                    {
+                        for(int i = 0; i < historyLines.size(); i++)
+                        {
+                            printf("%d: %s\n", i+1, historyLines[i].c_str());
+                        }
+                    }
+                }
             }
             else
             {
                 //For all other commands, check if an executable by that name is in one of the PATH directories
                 std::string path = getFullPath(cmd, os_path_list);
                 bool executable = false;
-
                 char * const * exec_args = buildExecArgs(input_args);
-
 
                 //   If yes, execute it
                 if(fileExists(path, &executable) && executable)
@@ -90,26 +175,64 @@ int main (int argc, char **argv)
                     _exit(2);//hard exit
                     }
 
-
-                    //execute
-
                 }
                 else
                 {//   If no, print error statement: "<command_name>: Error running command" (do include newline)
                     std::cout << cmd + ": Error running command\n";
                 }
-                
-
             }
-            
+            if(clear != 1)
+            {
+                recordHistory(std::string(input), path);
+            }
 
-
-
-
+            input_args.clear();
         }
     }
 
     return 0;
+}
+
+
+
+
+
+
+
+void recordHistory(std::string input, const char* path)
+{
+    //read in history
+    std::ifstream in;
+    std::string line;
+    std::vector<std::string> historyLines;
+
+    //read in the file
+    in.open(path);
+    while(std::getline(in, line))
+    {
+        historyLines.push_back(line);
+    }
+    in.close();
+
+    //add new entry
+    historyLines.push_back(input);
+
+    //check number of lines
+    if(historyLines.size() > 128)
+    {   //erase first line
+        historyLines.erase(historyLines.begin());
+    }
+
+    std::ofstream out;
+    //rewrite to file
+    out.open(path, std::ios_base::trunc);
+    out.close();
+    out.open(path, std::ios_base::app);
+    for(int i = 0; i < historyLines.size(); i++)
+    {
+        out << historyLines[i] << "\n";
+    }
+    out.close();
 }
 
 
@@ -158,7 +281,6 @@ std::string getFullPath(std::string cmd, const std::vector<std::string>& os_path
         if(fileExists(tryPath, &executable))
         {
             return tryPath;
-            //return os_path_list[i] + "/";
         }
     }
     return "";
