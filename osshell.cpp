@@ -1,4 +1,3 @@
-#include <iostream>
 #include <cstdlib>
 #include <string>
 #include <vector>
@@ -6,6 +5,7 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <fstream>
+#include <iostream>
 
 
 std::vector<std::string> splitString(std::string text, char d);
@@ -20,7 +20,6 @@ int main (int argc, char **argv)
     std::string input;
     char* os_path = getenv("PATH");
     std::vector<std::string> os_path_list = splitString(os_path, ':');
-
     std::cout << "Welcome to OSShell! Please enter your commands ('exit' to quit)." << std::endl;
 
     // Repeat:
@@ -44,6 +43,7 @@ int main (int argc, char **argv)
         //  Get user input for next command
         std::getline(std::cin, input);
 
+        //split user input into tokens and store in input_args
         //split on quotes
         quote_split = splitString(input, '\"');
        
@@ -67,7 +67,14 @@ int main (int argc, char **argv)
         if(input_args.size() > 0)
         {
             //record input into history
-            const char * path = "/home/keith/Desktop/history";
+            std::string a = "/home/";
+            std::string b = getenv("USER");
+            std::string c = "/Desktop/history";
+            
+            a = a + b + c;
+            //const char * path = "/home/" + "best5839" + "/Desktop/history";
+            const char * path = a.c_str();
+            //const char * path = getenv("PATH");
             std::string cmd = input_args[0];
             int clear = 0;
 
@@ -101,7 +108,7 @@ int main (int argc, char **argv)
                         n = atoi(input_args[1].c_str());
                         if(n <= 0)
                         {
-                            std::cout << "Error: history expects an integer > 0 (or 'clear')";
+                            std::cout << "Error: history expects an integer > 0 (or 'clear')" << std::endl;
                         }
                         else
                         {
@@ -118,7 +125,6 @@ int main (int argc, char **argv)
                                     printf("%d: %s\n", i+1, historyLines[i].c_str());
                                 }
                             }
-
                         }
                     }
                 }
@@ -178,7 +184,11 @@ int main (int argc, char **argv)
                 }
                 else
                 {//   If no, print error statement: "<command_name>: Error running command" (do include newline)
-                    std::cout << cmd + ": Error running command\n";
+                    for (int i = 0; i < input_args.size() - 1; i++)
+                        std::cout << input_args[i] << " ";
+                    std::cout << input_args[input_args.size() - 1];
+                    std::cout << ": Error running command\n";
+                    //std::cout << cmd + ": Error running command\n";
                 }
             }
             if(clear != 1)
@@ -286,7 +296,7 @@ std::string getFullPath(std::string cmd, const std::vector<std::string>& os_path
     return "";
 }
 
-// Returns whether a file exists or not; should also set *executable to true/false 
+// Returns whether a file exists or not; should also set *executable to true/false
 // depending on if the user has permission to execute the file
 bool fileExists(std::string full_path, bool *executable)// <-- getFullPath should call this to check for each path
 {
