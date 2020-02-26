@@ -72,7 +72,6 @@ int main (int argc, char **argv)
             std::string c = "/Desktop/history";
             
             a = a + b + c;
-            //const char * path = "/home/" + "best5839" + "/Desktop/history";
             const char * path = a.c_str();
             //const char * path = getenv("PATH");
             std::string cmd = input_args[0];
