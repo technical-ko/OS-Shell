@@ -67,7 +67,16 @@ int main (int argc, char **argv)
         if(input_args.size() > 0)
         {
             //record input into history
-            const char * path = "/home/keith/Desktop/history";
+            
+            std::string a = "/home/";
+            std::string b = getenv("USER");
+            std::string c = "/Desktop/history";
+            a = a + b + c;
+            const char * path = a.c_str();
+
+
+
+
             std::string cmd = input_args[0];
             int clear = 0;
 
@@ -183,7 +192,11 @@ int main (int argc, char **argv)
                 }
                 else
                 {//   If no, print error statement: "<command_name>: Error running command" (do include newline)
-                    std::cout << cmd + ": Error running command\n";
+                    for (int i = 0; i < input_args.size() - 1; i++)
+                        std::cout << input_args[i] << " ";
+                    std::cout << input_args[input_args.size() - 1];
+                    std::cout << ": Error running command\n";
+                    //std::cout << cmd + ": Error running command\n";
                 }
             }
             if(clear != 1)
